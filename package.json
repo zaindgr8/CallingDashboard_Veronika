@@ -1,0 +1,25 @@
+{
+  "name": "veronika-dashboard",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4310",
+    "build": "next build",
+    "start": "next start -p 4310",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "typescript": "^5"
+  }
+}
