@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ variable: '--font-inter', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'DevMate Voice',
-  description: 'DevMate Solutions AI voice agent console: outbound calls, bulk campaigns and call analytics.',
+  title: 'AI Lead Management',
+  description: 'AI Lead Management console: outbound calls, bulk campaigns and lead analytics.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

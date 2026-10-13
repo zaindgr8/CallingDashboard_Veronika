@@ -17,7 +17,7 @@ npm run dev        # development, http://localhost:4310
 npm run build && npm start   # production, http://localhost:4310
 ```
 
-Sign in with `DASHBOARD_PASSWORD` from `.env`.
+Sign in with `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` from `.env`.
 
 ## Configuration (`.env`)
 
@@ -25,6 +25,7 @@ Sign in with `DASHBOARD_PASSWORD` from `.env`.
 | --- | --- |
 | `RETELL_API_KEY` | Retell API key. Server-side only; never sent to the browser. |
 | `RETELL_SECRET_KEY` | Optional second key (reserved for webhook verification; not used yet). |
+| `DASHBOARD_USERNAME` | Username for the sign-in screen (e.g. `Veronika`) |
 | `DASHBOARD_PASSWORD` | Password for the sign-in screen |
 | `SESSION_SECRET` | Random string used to sign sessions (`openssl rand -hex 32`). Changing it signs everyone out. |
 | `ALLOWED_AGENT_IDS` | Optional comma-separated agent IDs to limit this dashboard to specific agents (one dashboard per client). |

@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
         <Link className="brand" href="/" onClick={() => setMenuOpen(false)}>
           <Image src="/logo-mark.png" alt="" width={32} height={32} />
-          <span><strong>DevMate</strong><small>Voice AI</small></span>
+          <span><strong>AI Lead Management</strong><small>DevMate Solutions</small></span>
         </Link>
         <nav className="nav">
           {NAV.map((n) => (

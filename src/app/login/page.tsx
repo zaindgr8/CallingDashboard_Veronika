@@ -14,9 +14,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setBusy(true);
-    const password = new FormData(e.currentTarget).get('password');
+    const form = new FormData(e.currentTarget);
+    const username = form.get('username');
+    const password = form.get('password');
     try {
-      await api('/api/login', { method: 'POST', body: { password } });
+      await api('/api/login', { method: 'POST', body: { username, password } });
       router.replace('/');
       router.refresh();
     } catch (ex) {
@@ -29,11 +31,15 @@ export default function LoginPage() {
     <main className="login">
       <form className="login-card" onSubmit={onSubmit}>
         <Image src="/logo.png" alt="DevMate" className="login-logo" width={158} height={56} priority />
-        <h1>Voice AI Console</h1>
-        <p className="muted">Sign in to place calls, run campaigns and review results.</p>
+        <h1>AI Lead Management</h1>
+        <p className="muted">Sign in to manage leads, run campaigns and review results.</p>
+        <label className="field">
+          <span>Username</span>
+          <input type="text" name="username" autoComplete="username" defaultValue="Veronika" required autoFocus />
+        </label>
         <label className="field">
           <span>Password</span>
-          <input type="password" name="password" autoComplete="current-password" required autoFocus />
+          <input type="password" name="password" autoComplete="current-password" required />
         </label>
         <p className="form-error" role="alert">{error}</p>
         <button className="btn btn-primary btn-block" type="submit" disabled={busy}>

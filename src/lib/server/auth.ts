@@ -28,12 +28,23 @@ export function validSession(token?: string | null) {
   return Number(payload.split('.')[0]) > Date.now();
 }
 
+export function credentialsMatch(username?: string, password?: string) {
+  const expectedUser = process.env.DASHBOARD_USERNAME;
+  const expectedPass = process.env.DASHBOARD_PASSWORD;
+  if (!expectedPass) return false;
+  if (expectedUser) {
+    if (!username) return false;
+    const a = createHmac('sha256', secret()).update(username.trim().toLowerCase()).digest();
+    const b = createHmac('sha256', secret()).update(expectedUser.trim().toLowerCase()).digest();
+    if (!timingSafeEqual(a, b)) return false;
+  }
+  const pa = createHmac('sha256', secret()).update(password ?? '').digest();
+  const pb = createHmac('sha256', secret()).update(expectedPass).digest();
+  return timingSafeEqual(pa, pb);
+}
+
 export function passwordMatches(input: string) {
-  const expected = process.env.DASHBOARD_PASSWORD;
-  if (!expected) return false;
-  const a = createHmac('sha256', secret()).update(input).digest();
-  const b = createHmac('sha256', secret()).update(expected).digest();
-  return timingSafeEqual(a, b);
+  return credentialsMatch(undefined, input);
 }
 
 const attempts = new Map<string, number[]>();
