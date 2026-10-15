@@ -46,6 +46,10 @@ export function outcomeOf(c: LeanCall): Outcome {
 }
 export const endedBecause = (c: LeanCall) => (isLive(c) ? 'In progress' : reasonLabel(c.reason));
 
+export const isInbound = (c: LeanCall) => c.direction === 'inbound';
+/** The customer's number: the caller on inbound calls, the callee on outbound ones. */
+export const contactNumber = (c: LeanCall) => (isInbound(c) ? c.from : c.to);
+
 export function contactName(c: LeanCall) {
   const v = c.vars || {};
   const key = Object.keys(v).find((k) => /name/i.test(k) && v[k]);
@@ -55,7 +59,7 @@ export function contactName(c: LeanCall) {
 export interface Summary {
   total: number; answered: number; answerRate: number; talk: number; avgDur: number; cost: number;
   costPerAnswered: number; successful: number; successRate: number; positive: number; positiveRate: number;
-  live: number; unique: number; reached: number;
+  live: number; unique: number; reached: number; inbound: number;
 }
 
 export function summarize(calls: LeanCall[]): Summary {
@@ -78,8 +82,9 @@ export function summarize(calls: LeanCall[]): Summary {
     positive,
     positiveRate: withSentiment.length ? positive / withSentiment.length : NaN,
     live: calls.filter(isLive).length,
-    unique: new Set(calls.map((c) => c.to)).size,
-    reached: new Set(answered.map((c) => c.to)).size,
+    unique: new Set(calls.map(contactNumber)).size,
+    reached: new Set(answered.map(contactNumber)).size,
+    inbound: calls.filter(isInbound).length,
   };
 }
 
@@ -101,8 +106,10 @@ export const validPhone = (s: string) => /^\+[1-9]\d{6,14}$/.test(s);
 
 export function parseCsv(input: string): string[][] {
   const text = input.replace(/^﻿/, '');
+  // Pick the delimiter the header row uses most (comma, semicolon or tab).
   const firstLine = text.split('\n')[0];
-  const delim = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
+  const count = (ch: string) => firstLine.split(ch).length - 1;
+  const delim = [',', ';', '\t'].reduce((best, ch) => (count(ch) > count(best) ? ch : best), ',');
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
@@ -114,7 +121,7 @@ export function parseCsv(input: string): string[][] {
       else if (ch === '"') quoted = false;
       else cell += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === delim || ch === '\t') { row.push(cell); cell = ''; }
+    else if (ch === delim) { row.push(cell); cell = ''; }
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && text[i + 1] === '\n') i++;
       row.push(cell); cell = '';
@@ -145,20 +152,24 @@ export function downloadText(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+/** One CSV cell, quoted as needed and safe to open in a spreadsheet. */
+export function csvCell(v: unknown) {
+  let s = String(v ?? '');
+  // Neutralise formulas, but leave plain numbers like +971501234567 or -12.5 alone.
+  if (/^[=+\-@\t\r]/.test(s) && !/^[+-]?\d[\d\s.]*$/.test(s)) s = `'${s}`;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 export function exportCallsCsv(calls: LeanCall[]) {
   const varKeys = [...new Set(calls.flatMap((c) => Object.keys(c.vars || {})))];
-  const cols = ['call_id', 'started_at', 'agent', 'from', 'to', 'status', 'outcome', 'end_reason', 'duration_seconds', 'sentiment', 'successful', 'cost_usd', 'summary', ...varKeys];
-  const cell = (v: unknown) => {
-    let s = String(v ?? '');
-    if (/^[=+\-@]/.test(s)) s = `'${s}`; // avoid spreadsheet formula injection
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
+  const cols = ['call_id', 'started_at', 'direction', 'agent', 'from', 'to', 'status', 'outcome', 'end_reason', 'duration_seconds', 'sentiment', 'successful', 'cost_usd', 'summary', ...varKeys];
+  const cell = csvCell;
   const lines = [cols.join(',')].concat(calls.map((c) => [
-    c.id, c.start ? new Date(c.start).toISOString() : '', c.agent_name, c.from, c.to, c.status, outcomeOf(c), c.reason,
+    c.id, c.start ? new Date(c.start).toISOString() : '', c.direction, c.agent_name, c.from, c.to, c.status, outcomeOf(c), c.reason,
     Math.round(c.duration_ms / 1000), c.sentiment, c.successful, (c.cost_cents / 100).toFixed(2), c.summary,
     ...varKeys.map((k) => c.vars?.[k]),
   ].map(cell).join(',')));
-  downloadText(`devmate-calls-${new Date().toISOString().slice(0, 10)}.csv`, lines.join('\n'));
+  downloadText(`calls-${new Date().toISOString().slice(0, 10)}.csv`, lines.join('\n'));
 }
 
 export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {

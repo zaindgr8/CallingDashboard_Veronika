@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CallsTable, NoNumbersCard, SentimentBadge, StatusBadge } from '@/components/calls-ui';
 import { useDashboard } from '@/components/dashboard-context';
 import { AgentSelect, defaultAgentFor, PhoneSelect, suggestedVars } from '@/components/form-helpers';
@@ -115,6 +115,9 @@ export default function NewCallPage() {
 function CallTracker({ id, to, onDone }: { id: string; to: string; onDone: () => void }) {
   const { openCall } = useDashboard();
   const [call, setCall] = useState<CallDetail | null>(null);
+  // Keep the latest callback without restarting the poll every time the parent re-renders.
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
 
   useEffect(() => {
     let stop = false;
@@ -125,12 +128,12 @@ function CallTracker({ id, to, onDone }: { id: string; to: string; onDone: () =>
       try { c = await api<CallDetail>(`/api/calls/${encodeURIComponent(id)}`); } catch { /* not indexed yet */ }
       if (stop) return;
       if (c) setCall(c);
-      if (c && !isLive(c)) { onDone(); return; }
+      if (c && !isLive(c)) { onDoneRef.current(); return; }
       if (++tries < 120) timer = setTimeout(tick, 3000);
     };
     tick();
     return () => { stop = true; clearTimeout(timer); };
-  }, [id, onDone]);
+  }, [id]);
 
   const done = call && !isLive(call);
   return (

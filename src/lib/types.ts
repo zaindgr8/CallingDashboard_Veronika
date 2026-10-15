@@ -57,6 +57,8 @@ export interface DashboardConfig {
   phoneNumbers: PhoneNumber[];
   concurrency: Concurrency | null;
   restricted: boolean;
+  /** True when an Anthropic key is configured, enabling AI lead briefs. */
+  aiEnabled: boolean;
 }
 
 export interface CallTimeWindow {
@@ -79,9 +81,97 @@ export interface Batch {
   // Live stats (only on recent batches)
   placed?: number;
   ended?: number;
+  /** Ended calls where a person actually talked (not voicemail / no answer). */
+  answered?: number;
   ongoing?: number;
   not_connected?: number;
   successful?: number;
   cost_cents?: number;
   statsError?: boolean;
+}
+
+// ---------- Leads ----------
+
+export type LeadStage = 'new' | 'attempted' | 'engaged' | 'qualified' | 'proposal' | 'won' | 'lost';
+export type Temperature = 'hot' | 'warm' | 'cold';
+
+export interface LeadNote { id: string; at: number; text: string }
+
+/** AI-written lead brief, cached on the lead until new calls come in. */
+export interface LeadBrief {
+  at: number;
+  /** Number of calls the brief was written from, so the UI can flag it as stale. */
+  calls: number;
+  summary: string;
+  intent: 'high' | 'medium' | 'low' | 'none';
+  suggested_stage: LeadStage;
+  next_action: string;
+  talking_points: string[];
+  objections: string[];
+  best_follow_up: string;
+}
+
+/** What the dashboard stores about a lead. Everything else is derived from calls. */
+export interface LeadRecord {
+  phone: string;
+  name?: string;
+  email?: string;
+  company?: string;
+  stage?: LeadStage;
+  stage_at?: number;
+  value?: number;
+  tags?: string[];
+  notes?: LeadNote[];
+  follow_up_at?: number | null;
+  source?: string;
+  created_at: number;
+  updated_at?: number;
+  /** Hidden from the pipeline; calls from this number won't bring it back. */
+  archived?: boolean;
+  brief?: LeadBrief;
+}
+
+export interface Lead {
+  phone: string;
+  name: string;
+  email?: string;
+  company?: string;
+  stage: LeadStage;
+  /** Stage the calls alone would give this lead. */
+  auto_stage: LeadStage;
+  stage_manual: boolean;
+  value?: number;
+  tags: string[];
+  notes_count: number;
+  follow_up_at?: number | null;
+  source: string;
+  created_at: number;
+  first_contact?: number;
+  last_contact?: number;
+  calls: number;
+  answered: number;
+  inbound: number;
+  outbound: number;
+  talk_ms: number;
+  cost_cents: number;
+  last_outcome?: string;
+  last_sentiment?: string;
+  last_summary?: string;
+  last_agent?: string;
+  successful: boolean;
+  live: boolean;
+  score: number;
+  temperature: Temperature;
+  score_reasons: string[];
+  next_action: { text: string; urgency: 'high' | 'medium' | 'low' };
+  has_brief: boolean;
+  /** True when calls arrived after the AI brief was written. */
+  brief_stale: boolean;
+  archived: boolean;
+}
+
+export interface LeadDetail extends Lead {
+  notes: LeadNote[];
+  history: LeanCall[];
+  brief?: LeadBrief;
 }

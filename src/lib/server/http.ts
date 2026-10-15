@@ -11,6 +11,8 @@ export class HttpError extends Error {
 export const json = (data: unknown, init?: ResponseInit) =>
   NextResponse.json(data, { ...init, headers: { 'Cache-Control': 'no-store', ...init?.headers } });
 
+const hostOf = (url: string) => { try { return new URL(url).host; } catch { return null; } };
+
 type Handler<C> = (req: NextRequest, ctx: C) => Promise<Response>;
 
 /**
@@ -25,7 +27,9 @@ export function route<C = unknown>(handler: Handler<C>, { auth = true } = {}): H
       }
       if (req.method !== 'GET') {
         const origin = req.headers.get('origin');
-        if (origin && new URL(origin).host !== req.headers.get('host')) throw new HttpError(403, 'Bad origin');
+        if (origin && hostOf(origin) !== (req.headers.get('x-forwarded-host') ?? req.headers.get('host'))) {
+          throw new HttpError(403, 'Bad origin');
+        }
       }
       return await handler(req, ctx);
     } catch (err) {

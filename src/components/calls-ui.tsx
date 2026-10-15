@@ -1,6 +1,6 @@
 'use client';
 
-import { contactName, endedBecause, fmt, outcomeOf } from '@/lib/calls';
+import { contactName, contactNumber, endedBecause, fmt, isInbound, outcomeOf } from '@/lib/calls';
 import type { LeanCall } from '@/lib/types';
 import { useDashboard } from './dashboard-context';
 
@@ -27,17 +27,19 @@ export function CallsTable({ calls, compact = false, empty = 'No calls yet.' }: 
       <table>
         <thead>
           <tr>
-            <th>When</th><th>Contact</th><th>Agent</th><th>Status</th><th>Outcome</th><th className="right">Duration</th>
+            <th>When</th><th>Contact</th><th>Direction</th><th>Agent</th><th>Status</th><th>Outcome</th><th className="right">Duration</th>
             {!compact && <><th>Sentiment</th><th className="right">Cost</th><th>Summary</th></>}
           </tr>
         </thead>
         <tbody>
           {calls.map((c) => {
             const name = contactName(c);
+            const number = contactNumber(c);
             return (
               <tr key={c.id} onClick={() => openCall(c.id)}>
                 <td>{fmt.date(c.start)}</td>
-                <td><div className="who"><span>{name || c.to || '—'}</span>{name && <small>{c.to}</small>}</div></td>
+                <td><div className="who"><span>{name || number || '—'}</span>{name && <small>{number}</small>}</div></td>
+                <td>{isInbound(c) ? <span className="badge info">Inbound</span> : <span className="badge">Outbound</span>}</td>
                 <td>{c.agent_name || '—'}</td>
                 <td><StatusBadge call={c} /></td>
                 <td>{endedBecause(c)}</td>

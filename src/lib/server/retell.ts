@@ -40,7 +40,10 @@ export async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>
   const hit = cache.get(key);
   if (hit && hit.exp > Date.now()) return hit.value as T;
   const value = await fn();
-  cache.set(key, { value, exp: Date.now() + ttlMs });
+  const now = Date.now();
+  // Drop expired entries so keys that are never asked for again don't pile up.
+  if (cache.size > 200) cache.forEach((v, k) => v.exp <= now && cache.delete(k));
+  cache.set(key, { value, exp: now + ttlMs });
   return value;
 }
 export const clearCallCache = () => cache.forEach((_, k) => k.startsWith('calls:') && cache.delete(k));
@@ -152,7 +155,7 @@ export function createPhoneCall(input: { from_number: string; to_number: string;
       idempotency_key: randomUUID(),
       ...(input.agent_id ? { override_agent_id: input.agent_id } : {}),
       retell_llm_dynamic_variables: input.variables,
-      metadata: { source: 'devmate-dashboard' },
+      metadata: { source: 'ai-lead-dashboard' },
     },
   });
 }

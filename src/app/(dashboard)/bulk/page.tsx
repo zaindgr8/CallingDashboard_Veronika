@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NoNumbersCard } from '@/components/calls-ui';
 import { useDashboard } from '@/components/dashboard-context';
 import { AgentSelect, avgCostPerDial, defaultAgentFor, PhoneSelect, suggestedVars } from '@/components/form-helpers';
@@ -18,13 +18,16 @@ const isFuture = (ts: number) => ts > Date.now();
 const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 export default function BulkPage() {
-  const { config, calls, prevCalls, toast } = useDashboard();
+  const { config, calls, prevCalls, toast, campaignPrefill, setCampaignPrefill } = useDashboard();
   const router = useRouter();
+  // Contacts sent over from the Leads page, consumed once.
+  const [pre] = useState(campaignPrefill);
+  useEffect(() => { if (campaignPrefill) setCampaignPrefill(null); }, [campaignPrefill, setCampaignPrefill]);
 
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<string[][]>([]);
+  const [headers, setHeaders] = useState<string[]>(pre?.headers ?? []);
+  const [rows, setRows] = useState<string[][]>(pre?.rows ?? []);
   const [phoneCol, setPhoneCol] = useState(0);
-  const [fileName, setFileName] = useState('');
+  const [fileName, setFileName] = useState(pre?.label ?? '');
   const [paste, setPaste] = useState('');
   const [cc, setCc] = useState(readCc);
   const [over, setOver] = useState(false);
@@ -86,7 +89,7 @@ export default function BulkPage() {
   function template() {
     const keys = suggestedVars(calls.concat(prevCalls), agent).filter((k) => !/phone|number|contact/i.test(k));
     const cols = ['phone', ...(keys.length ? keys : ['customer_name'])];
-    downloadText('devmate-contacts-template.csv', `${cols.join(',')}\n+971501234567,${cols.slice(1).map(() => '').join(',')}\n`);
+    downloadText('contacts-template.csv', `${cols.join(',')}\n+971501234567,${cols.slice(1).map(() => '').join(',')}\n`);
   }
 
   async function launch(e: React.FormEvent) {

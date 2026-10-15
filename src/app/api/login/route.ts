@@ -13,7 +13,9 @@ export const POST = route(async (req) => {
   res.cookies.set(SESSION_COOKIE, makeSession(), {
     httpOnly: true,
     sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production' && req.nextUrl.protocol === 'https:',
+    // Behind a TLS-terminating proxy the request itself arrives over http.
+    secure: process.env.NODE_ENV === 'production'
+      && (req.headers.get('x-forwarded-proto') ?? req.nextUrl.protocol.replace(':', '')).split(',')[0].trim() === 'https',
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
   });

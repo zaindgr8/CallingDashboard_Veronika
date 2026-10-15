@@ -4,14 +4,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, contactName, endedBecause, fmt, isAnswered } from '@/lib/calls';
+import { api, contactName, contactNumber, endedBecause, fmt, isAnswered, isInbound } from '@/lib/calls';
 import type { CallDetail } from '@/lib/types';
 import { SentimentBadge, StatusBadge } from './calls-ui';
 import { useDashboard } from './dashboard-context';
+import { LeadDrawer } from './lead-drawer';
 
 const Icon = ({ d }: { d: string }) => <svg viewBox="0 0 24 24" aria-hidden="true"><path d={d} /></svg>;
 const ICONS = {
   overview: 'M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z',
+  leads: 'M3 4h18l-7 8.5V19l-4 2v-8.5z',
   call: 'M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z',
   bulk: 'M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6m0 2c-2.3 0-7 1.2-7 3.5V19h14v-2.5C15 14.2 10.3 13 8 13m8 0c-.3 0-.6 0-1 .05 1.2.85 2 2 2 3.45V19h6v-2.5c0-2.3-4.7-3.5-7-3.5',
   campaigns: 'M3 5h18v2H3zm0 6h18v2H3zm0 6h12v2H3z',
@@ -24,6 +26,7 @@ export { Icon, ICONS };
 
 const NAV = [
   { href: '/', key: 'overview', label: 'Overview', title: 'Overview', sub: 'How your AI voice agents are performing', range: true },
+  { href: '/leads', key: 'leads', label: 'Leads', title: 'Leads', sub: 'Your pipeline: who to call, who is hot, and what to do next' },
   { href: '/call', key: 'call', label: 'New call', title: 'New call', sub: 'Have an AI agent call one person right now' },
   { href: '/bulk', key: 'bulk', label: 'Bulk campaign', title: 'Bulk campaign', sub: 'Upload a contact list and let your agent call everyone' },
   { href: '/campaigns', key: 'campaigns', label: 'Campaigns', title: 'Campaigns', sub: 'Progress of bulk campaigns launched from this dashboard' },
@@ -114,6 +117,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <CallDrawer />
+      <LeadDrawer />
       <div className="toast-wrap">
         {toasts.map((t) => <div key={t.id} className={`toast${t.err ? ' err' : ''}`}>{t.msg}</div>)}
       </div>
@@ -122,7 +126,7 @@ export function Shell({ children }: { children: ReactNode }) {
 }
 
 function CallDrawer() {
-  const { openCallId, openCall, setCallPrefill } = useDashboard();
+  const { openCallId, openCall, setCallPrefill, openLead } = useDashboard();
   const router = useRouter();
   const [call, setCall] = useState<CallDetail | null>(null);
   const [error, setError] = useState('');
@@ -156,7 +160,7 @@ function CallDrawer() {
       {open && <div className="drawer-backdrop" onClick={() => openCall(null)} />}
       <aside className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}>
         <div className="drawer-head">
-          <h2>{name || call?.to || 'Call details'}</h2>
+          <h2>{name || (call && contactNumber(call)) || 'Call details'}</h2>
           <button className="icon-btn" aria-label="Close" onClick={() => openCall(null)}><Icon d={ICONS.close} /></button>
         </div>
         {open && (
@@ -209,10 +213,12 @@ function CallDrawer() {
                 </div>
                 <div className="row">
                   <button className="btn btn-primary" onClick={() => {
-                    setCallPrefill({ to: call.to, agent_id: call.agent_id, from: call.from, vars: call.vars ?? {} });
+                    // On inbound calls the customer is the caller and our number is the callee.
+                    setCallPrefill({ to: contactNumber(call), agent_id: call.agent_id, from: isInbound(call) ? call.to : call.from, vars: call.vars ?? {} });
                     openCall(null);
                     router.push('/call');
-                  }}>Call again</button>
+                  }}>{isInbound(call) ? 'Call back' : 'Call again'}</button>
+                  {contactNumber(call) && <button className="btn" onClick={() => { openCall(null); openLead(contactNumber(call)!); }}>Open lead</button>}
                   <span className="tiny muted mono">{call.id}</span>
                 </div>
               </>

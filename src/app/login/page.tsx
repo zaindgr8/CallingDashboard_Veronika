@@ -35,7 +35,7 @@ export default function LoginPage() {
         <p className="muted">Sign in to manage leads, run campaigns and review results.</p>
         <label className="field">
           <span>Username</span>
-          <input type="text" name="username" autoComplete="username" defaultValue="Veronika" required autoFocus />
+          <input type="text" name="username" autoComplete="username" required autoFocus />
         </label>
         <label className="field">
           <span>Password</span>

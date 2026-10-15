@@ -2,12 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart, HBars, Legend, type Bucket } from '@/components/charts';
 import { CallsTable, LoadingBlocks } from '@/components/calls-ui';
 import { useDashboard, useTip } from '@/components/dashboard-context';
+import { NextAction, ScoreBadge, StageBadge } from '@/components/leads-ui';
+import { STAGES } from '@/lib/leads';
+import { api } from '@/lib/calls';
 import { endedBecause, fmt, isAnswered, outcomeOf, summarize } from '@/lib/calls';
-import type { LeanCall } from '@/lib/types';
+import type { Lead, LeanCall } from '@/lib/types';
 
 function Delta({ cur, prev, invert = false, isRate = false }: { cur: number; prev: number; invert?: boolean; isRate?: boolean }) {
   if (!Number.isFinite(cur) || !Number.isFinite(prev) || (!isRate && prev === 0)) return null;
@@ -24,6 +27,48 @@ function Kpi({ label, value, sub, hero }: { label: string; value: string; sub?: 
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value}</div>
       {sub && <div className="kpi-sub">{sub}</div>}
+    </div>
+  );
+}
+
+/** Pipeline counts and the leads that need attention first. */
+function PipelinePanel() {
+  const { leadsVersion, openLead } = useDashboard();
+  const [leads, setLeads] = useState<Lead[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api<{ leads: Lead[] }>('/api/leads').then((r) => { if (!cancelled) setLeads(r.leads); }).catch(() => { if (!cancelled) setLeads([]); });
+    return () => { cancelled = true; };
+  }, [leadsVersion]);
+  if (!leads) return <div className="card skeleton" style={{ height: 180 }} />;
+  if (!leads.length) return null;
+  const count = (k: string) => leads.filter((l) => l.stage === k).length;
+  const urgent = leads.filter((l) => l.next_action.urgency === 'high').slice(0, 5);
+  return (
+    <div className="cards cards-2">
+      <div className="card">
+        <div className="card-head"><h2>Lead pipeline</h2><p className="muted">all time · {leads.length} active leads</p><span className="spacer" /><Link className="btn btn-sm" href="/leads">Open pipeline</Link></div>
+        <div className="pipeline-strip">
+          {STAGES.map((s) => (
+            <Link key={s.key} href="/leads" title={s.hint}><span className="tiny muted">{s.label}</span><strong>{fmt.n(count(s.key))}</strong></Link>
+          ))}
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-head"><h2>Today&apos;s priorities</h2><p className="muted">leads to act on first</p></div>
+        {urgent.length ? (
+          <div className="timeline">
+            {urgent.map((l) => (
+              <button key={l.phone} className="timeline-item" onClick={() => openLead(l.phone)}>
+                <div className="row" style={{ gap: 8, flexWrap: 'nowrap' }}>
+                  <strong className="ellipsis">{l.name || l.phone}</strong><span className="spacer" /><StageBadge stage={l.stage} /><ScoreBadge lead={l} />
+                </div>
+                <NextAction action={l.next_action} />
+              </button>
+            ))}
+          </div>
+        ) : <p className="muted" style={{ margin: 0 }}>Nothing urgent. Nice work.</p>}
+      </div>
     </div>
   );
 }
@@ -112,8 +157,9 @@ export default function OverviewPage() {
 
   return (
     <>
+      <PipelinePanel />
       <div className="kpis">
-        <Kpi hero label="Total calls" value={fmt.n(s.total)} sub={<>{s.live ? `${s.live} live now · ` : ''}{rangeLabel}</>} />
+        <Kpi hero label="Total calls" value={fmt.n(s.total)} sub={<>{s.live ? `${s.live} live now · ` : ''}{s.inbound ? `${fmt.n(s.inbound)} inbound · ` : ''}{rangeLabel}</>} />
         <Kpi label="Answer rate" value={fmt.pct(s.answerRate)} sub={<>{fmt.n(s.answered)} answered <Delta cur={s.answerRate} prev={p.answerRate} isRate /></>} />
         <Kpi label="Talk time" value={fmt.mins(s.talk)} sub={`avg ${fmt.dur(s.avgDur)} per answered call`} />
         <Kpi label="Successful calls" value={fmt.n(s.successful)} sub={<>{fmt.pct(s.successRate)} of answered <Delta cur={s.successful} prev={p.successful} /></>} />

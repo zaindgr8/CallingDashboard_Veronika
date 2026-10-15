@@ -7,6 +7,8 @@ import type { DashboardConfig, LeanCall } from '@/lib/types';
 
 export interface HistoryFilters { q: string; agent: string; outcome: string; sentiment: string; success: string; page: number }
 export interface CallPrefill { to?: string; agent_id?: string; from?: string; vars?: Record<string, string> }
+/** Contacts handed to the bulk campaign page, in the same shape as a parsed CSV. */
+export interface CampaignPrefill { label: string; headers: string[]; rows: string[][] }
 interface Toast { id: number; msg: string; err: boolean }
 
 interface Ctx {
@@ -26,8 +28,16 @@ interface Ctx {
   setHistory: (u: Partial<HistoryFilters>) => void;
   callPrefill: CallPrefill | null;
   setCallPrefill: (p: CallPrefill | null) => void;
+  campaignPrefill: CampaignPrefill | null;
+  setCampaignPrefill: (p: CampaignPrefill | null) => void;
   openCallId: string | null;
   openCall: (id: string | null) => void;
+  /** Phone of the lead shown in the lead drawer. */
+  openLeadPhone: string | null;
+  openLead: (phone: string | null) => void;
+  /** Bumped whenever a lead changes, so lists can refetch. */
+  leadsVersion: number;
+  bumpLeads: () => void;
   toast: (msg: string, err?: boolean) => void;
   toasts: Toast[];
 }
@@ -51,7 +61,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [history, setHistoryState] = useState<HistoryFilters>({ q: '', agent: '', outcome: '', sentiment: '', success: '', page: 0 });
   const [callPrefill, setCallPrefill] = useState<CallPrefill | null>(null);
+  const [campaignPrefill, setCampaignPrefill] = useState<CampaignPrefill | null>(null);
   const [openCallId, openCall] = useState<string | null>(null);
+  const [openLeadPhone, openLead] = useState<string | null>(null);
+  const [leadsVersion, setLeadsVersion] = useState(0);
+  const bumpLeads = useCallback(() => setLeadsVersion((v) => v + 1), []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const daysRef = useRef(days);
 
@@ -109,18 +123,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Quiet auto-refresh so live calls and fresh results show up.
   useEffect(() => {
     const t = setInterval(() => {
-      if (document.hidden || openCallId) return;
+      if (document.hidden || openCallId || openLeadPhone) return;
       if (document.activeElement?.matches('input, select, textarea')) return;
       reloadConfig();
       reloadCalls({ silent: true });
     }, 30000);
     return () => clearInterval(t);
-  }, [openCallId, reloadCalls, reloadConfig]);
+  }, [openCallId, openLeadPhone, reloadCalls, reloadConfig]);
 
   const value = useMemo<Ctx>(() => ({
     config, configError, reloadConfig, days, setDays, calls, prevCalls, loaded, loadedAt, loading, reloadCalls,
-    history, setHistory, callPrefill, setCallPrefill, openCallId, openCall, toast, toasts,
-  }), [config, configError, reloadConfig, days, setDays, calls, prevCalls, loaded, loadedAt, loading, reloadCalls, history, setHistory, callPrefill, openCallId, toast, toasts]);
+    history, setHistory, callPrefill, setCallPrefill, campaignPrefill, setCampaignPrefill, openCallId, openCall, openLeadPhone, openLead, leadsVersion, bumpLeads, toast, toasts,
+  }), [config, configError, reloadConfig, days, setDays, calls, prevCalls, loaded, loadedAt, loading, reloadCalls, history, setHistory, callPrefill, campaignPrefill, openCallId, openLeadPhone, leadsVersion, bumpLeads, toast, toasts]);
 
   return <DashboardContext value={value}>{children}</DashboardContext>;
 }

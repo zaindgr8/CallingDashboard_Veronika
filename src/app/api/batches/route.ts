@@ -1,5 +1,7 @@
 import { json, readJson, route, HttpError } from '@/lib/server/http';
+import { isAnswered } from '@/lib/calls';
 import { readBatches, saveBatch } from '@/lib/server/batches';
+import { leadNameFrom, mergeLeads } from '@/lib/server/leads';
 import {
   assertCallable, baseFilter, cached, cleanVars, createBatchCall, E164, listAgents, listCalls, normalizeTo,
 } from '@/lib/server/retell';
@@ -19,6 +21,7 @@ export const GET = route(async () => {
         ...b,
         placed: calls.length,
         ended: by('ended'),
+        answered: calls.filter(isAnswered).length,
         ongoing: by('ongoing') + by('registered'),
         not_connected: by('not_connected') + by('error'),
         successful: calls.filter((c) => c.successful).length,
@@ -57,7 +60,7 @@ export const POST = route(async (req) => {
       to_number: to,
       ...(agent_id ? { override_agent_id: agent_id } : {}),
       retell_llm_dynamic_variables: cleanVars(t.variables),
-      metadata: { source: 'devmate-dashboard' },
+      metadata: { source: 'ai-lead-dashboard' },
     });
   }
   if (!clean.length) throw new HttpError(400, 'No valid phone numbers found. Use international format like +971501234567.');
@@ -96,5 +99,8 @@ export const POST = route(async (req) => {
     window: call_time_window ?? null,
   };
   await saveBatch(entry);
+  await mergeLeads(clean.map((t) => ({
+    phone: t.to_number, name: leadNameFrom(t.retell_llm_dynamic_variables), source: `Campaign: ${entry.name}`,
+  }))).catch((e) => console.error('lead save failed', e));
   return json(entry, { status: 201 });
 });

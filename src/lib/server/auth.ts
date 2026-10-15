@@ -50,6 +50,7 @@ export function passwordMatches(input: string) {
 const attempts = new Map<string, number[]>();
 export function tooManyAttempts(ip: string) {
   const now = Date.now();
+  if (attempts.size > 5000) attempts.forEach((t, k) => { if (!t.some((x) => now - x < 15 * 60_000)) attempts.delete(k); });
   const recent = (attempts.get(ip) ?? []).filter((t) => now - t < 15 * 60_000);
   attempts.set(ip, recent);
   return recent.length >= 10;

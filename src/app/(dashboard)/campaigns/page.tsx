@@ -65,7 +65,7 @@ export default function CampaignsPage() {
                       <span className="num tiny muted">{fmt.n(placed)} / {fmt.n(b.total)}</span>
                       <div className="meter" style={{ background: 'var(--surface-2)' }}><i style={{ width: `${pct}%` }} /></div>
                     </td>
-                    <td className="right num">{stat(b.ended)}</td>
+                    <td className="right num">{stat(b.answered ?? b.ended)}</td>
                     <td className="right num">{stat(b.not_connected)}</td>
                     <td className="right num">{stat(b.successful)}</td>
                     <td className="right num">{stat(b.cost_cents, true)}</td>
